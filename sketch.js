@@ -8,7 +8,41 @@ const xSectionCount = 15;
 let xSectionWidth;
 let currentSection = 0;
 
+const STATE_BEGIN = 0;
+const STATE_ACTIVE = 1;
+const STATE_SCORING = 2;
+
+let state = STATE_BEGIN;
+
 let score;
+
+function storeGlobalState() {
+  const globalState = {
+    state,
+    listOfLineCollections,
+    activeLineCollection,
+    committedLineCollection,
+    x,
+    y,
+  };
+
+  localStorage.setItem("completeState", JSON.stringify(globalState));
+}
+
+function readGlobalState() {
+  const storedState = localStorage.getItem("completeState");
+  if (storedState) {
+    const parsedState = JSON.parse(storedState);
+
+    state = parsedState.state;
+    listOfLineCollections = parsedState.listOfLineCollections;
+    activeLineCollection = parsedState.activeLineCollection;
+    committedLineCollection = parsedState.committedLineCollection;
+
+    x = parsedState.x;
+    y = parsedState.y;
+  }
+}
 
 function setup() {
   x = 0;
@@ -18,8 +52,12 @@ function setup() {
 
   createCanvas(windowWidth, windowHeight);
 
+  readGlobalState();
+
   setInterval(() => {
-    buildNewLines();
+    if (state == STATE_ACTIVE) {
+      buildNewLines();
+    }
   }, 500);
 
   background(256);
@@ -30,34 +68,76 @@ function setup() {
 function buildNewLines() {
   listOfLineCollections.push(activeLineCollection);
   activeLineCollection = genLines(x, 0, x + xSectionWidth, windowHeight, y);
+
+  storeGlobalState();
 }
 
 function keyPressed() {
-  let [x1, y1, x2, y2] = activeLineCollection[activeLineCollection.length - 1];
+  if (key != " ") {
+    return;
+  }
 
-  committedLineCollection.push(activeLineCollection);
+  if (state == STATE_BEGIN) {
+    state = STATE_ACTIVE;
+  } else if (state == STATE_ACTIVE) {
+    let [x1, y1, x2, y2] =
+      activeLineCollection[activeLineCollection.length - 1];
 
-  x += xSectionWidth;
-  y = y2;
-  currentSection += 1;
+    committedLineCollection.push(activeLineCollection);
 
-  buildNewLines();
+    x += xSectionWidth;
+    y = y2;
+    currentSection += 1;
+
+    if (currentSection >= xSectionCount) {
+      state = STATE_SCORING;
+    }
+
+    buildNewLines();
+
+    storeGlobalState();
+  }
 }
 
 function draw() {
-  if (currentSection < xSectionCount) {
+  if (state == STATE_BEGIN) {
+    textAlign(CENTER);
+    textSize(32);
+    text(
+      "Press 'space' to commit. Your choices are not reversable.",
+      windowWidth / 2,
+      windowHeight / 2
+    );
+  } else if (state == STATE_ACTIVE) {
     background(256);
 
-    stroke(200);
-    for (let lineCollection of listOfLineCollections) {
-      drawLines(lineCollection);
-    }
+    drawLineForest();
+  } else if (state == STATE_SCORING) {
+    background(256);
 
-    stroke(0);
-    drawLines(activeLineCollection);
-    for (let lineCollection of committedLineCollection) {
-      drawLines(lineCollection);
-    }
+    drawLineForest();
+
+    textAlign(CENTER);
+    textSize(32);
+    fill(255, 0, 0);
+    text(
+      "You explored " + listOfLineCollections.length + " possibilities",
+      windowWidth / 2,
+      windowHeight / 2
+    );
+  }
+}
+
+function drawLineForest(inactiveLineStroke) {
+  stroke(inactiveLineStroke || 200);
+  for (let lineCollection of listOfLineCollections) {
+    drawLines(lineCollection);
+  }
+
+  stroke(0);
+  drawLines(activeLineCollection);
+  for (let lineCollection of committedLineCollection) {
+    drawLines(lineCollection);
   }
 }
 
