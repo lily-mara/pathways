@@ -4,4 +4,5 @@ html, body {
 }
 canvas {
   display: block;
+  letter-spacing: 0.2em;
 }

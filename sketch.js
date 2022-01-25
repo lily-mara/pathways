@@ -8,13 +8,24 @@ const xSectionCount = 15;
 let xSectionWidth;
 let currentSection = 0;
 
+let allowWrites = true;
+
 const STATE_BEGIN = 0;
 const STATE_ACTIVE = 1;
 const STATE_SCORING = 2;
+const STATE_SCORE_FADEOUT = 3;
+const STATE_MSG_FADEIN = 4;
+const STATE_FINISH = 5;
+
+let typed = "";
 
 let state = STATE_BEGIN;
 
 let score;
+
+let inactiveLineStrokeWhileScoring = 200;
+let scoreOpacity = 256;
+let msgOpacity = 0;
 
 function storeGlobalState() {
   const globalState = {
@@ -24,9 +35,19 @@ function storeGlobalState() {
     committedLineCollection,
     x,
     y,
+    inactiveLineStrokeWhileScoring,
+    scoreOpacity,
+    msgOpacity,
   };
 
-  localStorage.setItem("completeState", JSON.stringify(globalState));
+  if (allowWrites) {
+    localStorage.setItem("completeState", JSON.stringify(globalState));
+  }
+}
+
+function resetState() {
+  localStorage.removeItem("completeState");
+  allowWrites = false;
 }
 
 function readGlobalState() {
@@ -38,6 +59,10 @@ function readGlobalState() {
     listOfLineCollections = parsedState.listOfLineCollections;
     activeLineCollection = parsedState.activeLineCollection;
     committedLineCollection = parsedState.committedLineCollection;
+
+    inactiveLineStrokeWhileScoring = parsedState.inactiveLineStrokeWhileScoring;
+    scoreOpacity = parsedState.scoreOpacity;
+    msgOpacity = parsedState.msgOpacity;
 
     x = parsedState.x;
     y = parsedState.y;
@@ -73,40 +98,39 @@ function buildNewLines() {
 }
 
 function keyPressed() {
-  if (key != " ") {
-    return;
+  typed += key;
+  if (typed == "resetme") {
+    resetState();
   }
 
-  if (state == STATE_BEGIN) {
-    state = STATE_ACTIVE;
-  } else if (state == STATE_ACTIVE) {
-    let [x1, y1, x2, y2] =
-      activeLineCollection[activeLineCollection.length - 1];
+  if (key == " ") {
+    if (state == STATE_BEGIN) {
+      state = STATE_ACTIVE;
+    } else if (state == STATE_ACTIVE) {
+      let [x1, y1, x2, y2] =
+        activeLineCollection[activeLineCollection.length - 1];
 
-    committedLineCollection.push(activeLineCollection);
+      committedLineCollection.push(activeLineCollection);
 
-    x += xSectionWidth;
-    y = y2;
-    currentSection += 1;
+      x += xSectionWidth;
+      y = y2;
+      currentSection += 1;
 
-    if (currentSection >= xSectionCount) {
-      state = STATE_SCORING;
+      if (currentSection >= xSectionCount) {
+        state = STATE_SCORING;
+      }
+
+      buildNewLines();
     }
-
-    buildNewLines();
-
-    storeGlobalState();
   }
+
+  storeGlobalState();
 }
 
 function draw() {
   if (state == STATE_BEGIN) {
-    textAlign(CENTER);
-    textSize(32);
-    text(
-      "Press 'space' to commit. Your choices are not reversable.",
-      windowWidth / 2,
-      windowHeight / 2
+    writeText(
+      "Press 'space' to commit to a path. Your choices are not reversable."
     );
   } else if (state == STATE_ACTIVE) {
     background(256);
@@ -115,17 +139,61 @@ function draw() {
   } else if (state == STATE_SCORING) {
     background(256);
 
-    drawLineForest();
+    drawLineForest(inactiveLineStrokeWhileScoring);
 
-    textAlign(CENTER);
-    textSize(32);
-    fill(255, 0, 0);
-    text(
-      "You explored " + listOfLineCollections.length + " possibilities",
-      windowWidth / 2,
-      windowHeight / 2
+    writeText(
+      "You explored " + listOfLineCollections.length + " possibilities"
     );
+
+    inactiveLineStrokeWhileScoring += 0.5;
+    if (inactiveLineStrokeWhileScoring >= 256) {
+      state = STATE_SCORE_FADEOUT;
+    }
+  } else if (state == STATE_SCORE_FADEOUT) {
+    background(256);
+
+    drawLineForest(256);
+
+    writeText(
+      "You explored " + listOfLineCollections.length + " possibilities",
+      scoreOpacity
+    );
+
+    scoreOpacity -= 2;
+    if (scoreOpacity <= 0) {
+      state = STATE_MSG_FADEIN;
+    }
+  } else if (state == STATE_MSG_FADEIN) {
+    background(256);
+    drawLineForest(256);
+
+    writeText("Do you remember the paths you didn't take?", msgOpacity);
+
+    msgOpacity += 3;
+    if (msgOpacity >= 256) {
+      state = STATE_FINISH;
+    }
+  } else if (state == STATE_FINISH) {
+    background(256);
+    drawLineForest(256);
+
+    writeText("Do you remember the paths you didn't take?");
   }
+
+  storeGlobalState();
+}
+
+function writeText(msg, opacity) {
+  textAlign(CENTER);
+  textSize(32);
+
+  strokeWeight(3);
+  stroke(0, 0, 0, opacity || 256);
+
+  fill(256, 256, 256, opacity || 256);
+  text(msg, windowWidth / 2, windowHeight / 2);
+
+  strokeWeight(1);
 }
 
 function drawLineForest(inactiveLineStroke) {
