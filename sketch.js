@@ -1,21 +1,25 @@
 let listOfLineCollections = [];
 let activeLineCollection = [];
+let committedLineCollection = [];
+
 let x;
 let y;
-const xSteps = 10;
+const xSectionCount = 15;
 let xSectionWidth;
+let currentSection = 0;
+
+let score;
 
 function setup() {
   x = 0;
   y = windowHeight / 2;
 
-  xSectionWidth = windowWidth / xSteps;
+  xSectionWidth = windowWidth / xSectionCount;
 
   createCanvas(windowWidth, windowHeight);
 
   setInterval(() => {
-    listOfLineCollections.push(activeLineCollection);
-    activeLineCollection = genLines(x, 0, x + xSectionWidth, windowHeight, y);
+    buildNewLines();
   }, 500);
 
   background(256);
@@ -23,23 +27,38 @@ function setup() {
   activeLineCollection = genLines(x, 0, x + xSectionWidth, windowHeight, y);
 }
 
+function buildNewLines() {
+  listOfLineCollections.push(activeLineCollection);
+  activeLineCollection = genLines(x, 0, x + xSectionWidth, windowHeight, y);
+}
+
 function keyPressed() {
   let [x1, y1, x2, y2] = activeLineCollection[activeLineCollection.length - 1];
 
+  committedLineCollection.push(activeLineCollection);
+
   x += xSectionWidth;
   y = y2;
+  currentSection += 1;
+
+  buildNewLines();
 }
 
 function draw() {
-  background(256);
+  if (currentSection < xSectionCount) {
+    background(256);
 
-  stroke(200);
-  for (let lineCollection of listOfLineCollections) {
-    drawLines(lineCollection);
+    stroke(200);
+    for (let lineCollection of listOfLineCollections) {
+      drawLines(lineCollection);
+    }
+
+    stroke(0);
+    drawLines(activeLineCollection);
+    for (let lineCollection of committedLineCollection) {
+      drawLines(lineCollection);
+    }
   }
-
-  stroke(0);
-  drawLines(activeLineCollection);
 }
 
 function drawLines(lines) {
