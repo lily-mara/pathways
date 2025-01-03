@@ -104,33 +104,53 @@ function keyPressed() {
   }
 
   if (key == " ") {
-    if (state == STATE_BEGIN) {
-      state = STATE_ACTIVE;
-    } else if (state == STATE_ACTIVE) {
-      let [x1, y1, x2, y2] =
-        activeLineCollection[activeLineCollection.length - 1];
+    advance();
+  }
+}
 
-      committedLineCollection.push(activeLineCollection);
+function touchStarted(_event) {
+  advance();
+}
 
-      x += xSectionWidth;
-      y = y2;
-      currentSection += 1;
+function advance() {
+  if (state == STATE_BEGIN) {
+    state = STATE_ACTIVE;
+  } else if (state == STATE_ACTIVE) {
+    let [x1, y1, x2, y2] =
+      activeLineCollection[activeLineCollection.length - 1];
 
-      if (currentSection >= xSectionCount) {
-        state = STATE_SCORING;
-      }
+    committedLineCollection.push(activeLineCollection);
 
-      buildNewLines();
+    x += xSectionWidth;
+    y = y2;
+    currentSection += 1;
+
+    if (currentSection >= xSectionCount) {
+      state = STATE_SCORING;
     }
+
+    buildNewLines();
   }
 
   storeGlobalState();
 }
 
+function isTouchDevice() {
+  return (
+    "ontouchstart" in window ||
+    navigator.maxTouchPoints > 0 ||
+    navigator.msMaxTouchPoints > 0
+  );
+}
+
 function draw() {
   if (state == STATE_BEGIN) {
+    let howToAdvance = "Press 'space'";
+    if (isTouchDevice()) {
+      howToAdvance = "Touch the screen";
+    }
     writeText(
-      "Press 'space' to commit to a path. Your choices are not reversable."
+      `${howToAdvance} to commit to a path. Your choices are not reversable.`,
     );
   } else if (state == STATE_ACTIVE) {
     background(256);
@@ -142,7 +162,7 @@ function draw() {
     drawLineForest(inactiveLineStrokeWhileScoring);
 
     writeText(
-      "You explored " + listOfLineCollections.length + " possibilities"
+      "You explored " + listOfLineCollections.length + " possibilities",
     );
 
     inactiveLineStrokeWhileScoring += 0.5;
@@ -156,7 +176,7 @@ function draw() {
 
     writeText(
       "You explored " + listOfLineCollections.length + " possibilities",
-      scoreOpacity
+      scoreOpacity,
     );
 
     scoreOpacity -= 2;
